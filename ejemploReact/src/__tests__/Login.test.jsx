@@ -10,12 +10,9 @@ import Login from '../pages/Login'
 import { UserProvider } from '../context/UserContext'
 
 // Mock del módulo api para evitar llamadas reales a la red durante la prueba.
-vi.mock('../api/api', () => ({
-  default: {
-    // `defaults.headers.common` se usa en UserContext, por eso lo incluimos en el mock
-    defaults: { headers: { common: {} }, baseURL: 'https://dummyjson.com' },
-    post: vi.fn(() => Promise.resolve({ data: { token: 't', id: 1, username: 'kminchelle' } })),
-  },
+vi.mock('../api/adapter', () => ({
+  // Mock del adaptador: devolvemos directamente la forma normalizada que espera la app
+  login: vi.fn(() => Promise.resolve({ token: 't', refreshToken: null, user: { id: 1, username: 'kminchelle' } })),
 }))
 
 describe('Login page', () => {

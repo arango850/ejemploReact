@@ -3,7 +3,7 @@
 // a la API. En caso de éxito llama a `login()` del contexto para guardar el token.
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api from '../api/api'
+import { login as apiLogin } from '../api/adapter'
 import { useUser } from '../context/UserContext'
 import { Container, Box, TextField, Button, Typography, Alert, CircularProgress } from '@mui/material'
 
@@ -22,17 +22,10 @@ const Login = () => {
     setError(null)
     setLoading(true)
     try {
-      // Llamada a la API para autenticación
-      const res = await api.post('/auth/login', { username, password })
-      // Algunas APIs (DummyJSON) devuelven `accessToken` en lugar de `token`.
-      // Hacemos robusto el parseo para aceptar ambos nombres.
-      const data = res.data || {}
-      const tokenValue = data.token || data.accessToken || data.access_token || data.jwt || null
-      const refresh = data.refreshToken || data.refresh_token || null
-      const { token, accessToken, refreshToken, ...userData } = data
-      // Preferimos tokenValue calculado, pero debemos mantener userData limpio
+      // Usamos el adaptador para aislar la lógica de la API
+      const { token, refreshToken, user } = await apiLogin({ username, password })
       // Guardamos token/usuario a través del contexto
-      login(tokenValue, userData, refresh)
+      login(token, user, refreshToken)
       navigate('/feed')
     } catch (err) {
       // Mostramos error de manera amigable

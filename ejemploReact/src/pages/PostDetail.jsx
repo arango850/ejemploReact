@@ -4,12 +4,11 @@
 // - Soporta añadir comentarios con intentos a varios endpoints y fallback optimista.
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import api from '../api/api'
+import { getPost as apiGetPost, getComments as apiGetComments, addComment as apiAddComment } from '../api/adapter'
 import { Container, Typography, Box, TextField, Button, List, CircularProgress, Alert } from '@mui/material'
 import Header from '../components/Header'
 import CommentItem from '../components/CommentItem'
 import { useUser } from '../context/UserContext'
-
 const PostDetail = () => {
   const { id } = useParams()
   const [post, setPost] = useState(null)
@@ -28,26 +27,24 @@ const PostDetail = () => {
       setError(null)
       setLoading(true)
       try {
-        // Cargamos el post
-        const p = await api.get(`/posts/${id}`)
-        setPost(p.data)
-        // Cargamos comentarios (primer batch)
-        const c = await api.get(`/posts/${id}/comments`, { params: { limit, skip: 0 } })
-        setComments(c.data.comments || [])
-        setTotal(c.data.total ?? null)
-        setSkip((c.data.comments || []).length)
+        // Cargamos el post y los comentarios usando el adaptador
+        const p = await apiGetPost(id)
+        setPost(p)
+        const { comments: fetched, total: newTotal } = await apiGetComments(id, { limit, skip: 0 })
+        setComments(fetched || [])
+        setTotal(newTotal ?? null)
+        setSkip((fetched || []).length)
       } catch (err) {
         setError('No se pudo cargar el post o los comentarios')
       } finally {
         setLoading(false)
       }
     }
+
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  // handleAdd: añade un comentario. Intentamos varios endpoints y usamos
-  // un fallback local si ninguno funciona (mock optimista para el taller).
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!text) return
@@ -57,17 +54,10 @@ const PostDetail = () => {
       if (user && user.id) payload.userId = user.id
       let newComment
       try {
-        const res = await api.post('/comments/add', payload)
-        newComment = res.data
-      } catch (apiErr) {
-        // fallback: intentar endpoint alternativo
-        try {
-          const res2 = await api.post(`/posts/${id}/comments`, payload)
-          newComment = res2.data
-        } catch (_e) {
-          // Final fallback: comentario local (optimista)
-          newComment = { id: Date.now(), body: text, userId: user?.id }
-        }
+        newComment = await apiAddComment(id, payload)
+      } catch (_e) {
+        // Fallback: comentario local (optimista)
+        newComment = { id: Date.now(), body: text, userId: user?.id }
       }
 
       setComments((c) => [newComment, ...c])
@@ -85,11 +75,10 @@ const PostDetail = () => {
     if (total !== null && comments.length >= total) return
     setLoading(true)
     try {
-      const res = await api.get(`/posts/${id}/comments`, { params: { limit, skip } })
-      const fetched = res.data.comments || []
+      const { comments: fetched, total: newTotal } = await apiGetComments(id, { limit, skip })
       setComments((c) => [...c, ...fetched])
       setSkip((s) => s + fetched.length)
-      setTotal(res.data.total ?? total)
+      setTotal(newTotal ?? total)
     } catch (err) {
       setError('No se pudieron cargar más comentarios')
     } finally {

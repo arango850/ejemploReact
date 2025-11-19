@@ -8,17 +8,9 @@ import { MemoryRouter } from 'react-router-dom'
 import Feed from '../pages/Feed'
 import { UserProvider } from '../context/UserContext'
 
-vi.mock('../api/api', () => ({
-  default: {
-    defaults: { headers: { common: {} }, baseURL: 'https://dummyjson.com' },
-    get: vi.fn((url) => {
-      if (url.startsWith('/posts')) {
-        return Promise.resolve({ data: { posts: [{ id: 1, title: 'Hello', body: 'World' }], total: 1 } })
-      }
-      return Promise.resolve({ data: {} })
-    }),
-    post: vi.fn(() => Promise.resolve({ data: { id: 2, title: 'New', body: 'Post' } })),
-  },
+vi.mock('../api/adapter', () => ({
+  getPosts: vi.fn(() => Promise.resolve({ posts: [{ id: 1, title: 'Hello', body: 'World' }], total: 1 })),
+  addPost: vi.fn(() => Promise.resolve({ id: 2, title: 'New', body: 'Post' })),
 }))
 
 describe('Feed page', () => {
